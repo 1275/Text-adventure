@@ -2,25 +2,30 @@
 #include <stdlib.h>
 #include <time.h>
 #include "dungeon.h"
+#include "player.h"
 
 int main(void)
 {
-    srand((unsigned int)time(NULL)); // seed random number generator
+    srand((unsigned int)time(NULL));
 
-    int player_health = 100;
-    int player_gold = 0;
+    Player player;
+    player_init(&player);
+
     int current_room = 1;
     int running = 1;
 
-    printf("===Welcome to the Dungeon Crawler!===\n");
+    printf("=== Welcome to the Dungeon Crawler! ===\n");
+    printf("Tips: Use N/S/E/W to move, Q to quit.\n");
+    player_print_status(&player);
+    player_print_inventory(&player);
 
     while (running)
     {
-        print_status(player_health, player_gold);
+        player_print_status(&player);
         char command = read_command();
-        handle_command(command, &running, &current_room, &player_health, &player_gold);
+        handle_command(command, &running, &current_room, &player);
 
-        if (player_health <= 0)
+        if (player.health <= 0)
         {
             printf("You have perished in the dungeon. Game Over!\n");
             running = 0;

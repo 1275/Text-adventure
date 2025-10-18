@@ -2,9 +2,9 @@ CC := gcc
 CFLAGS := -std=c11 -Wall -Wextra -O2
 
 TARGET := adventure
-SRCS := main.c dungeon.c enemies.c
+SRCS := main.c dungeon.c enemies.c player.c
 OBJS := $(SRCS:.c=.o)
-HEADERS := dungeon.h enemies.h
+HEADERS := dungeon.h enemies.h player.h
 
 all: $(TARGET)
 

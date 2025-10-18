@@ -1,35 +1,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "enemies.h"
+#include "player.h"
 
-int battle_monster(int *player_health)
+typedef struct {
+    const char *name;
+    int hp;
+    int attack;
+    int defense;
+    int min_loot;
+    int max_loot;
+} Monster;
+
+int battle_monster(Player *player)
 {
-    static const char *names[] = {"Goblin", "Skeleton", "Giant Spider", "Orc", "Troll"};
-    static const int base_hp[] = {30, 40, 50, 60, 80};
+    static const Monster monsters[] = {
+        {"Goblin",       30,  7, 1,  8, 20},
+        {"Skeleton",     40,  9, 2, 12, 26},
+        {"Giant Spider", 50, 11, 3, 15, 30},
+        {"Orc",          60, 13, 4, 20, 35},
+        {"Troll",        80, 16, 5, 30, 45},
+    };
+    const int mcount = (int)(sizeof(monsters)/sizeof(monsters[0]));
+    int idx = rand() % mcount;
+    Monster m = monsters[idx];
 
-    int monster_type = rand() % 5;
-    const char *name = names[monster_type];
-    int monster_health = base_hp[monster_type];
+    int mhp = m.hp;
+    printf("A %s appears with %d HP!\n", m.name, mhp);
 
-    printf("A %s appears with %d HP!\n", name, monster_health);
-
-    while (monster_health > 0 && *player_health > 0)
+    while (mhp > 0 && player->health > 0)
     {
-        int player_attack = rand() % 20 + 5;  // 5..24
-        int monster_attack = rand() % 15 + 3; // 3..17
+        int p_roll = rand() % 6;         // 0..5 variation
+        int m_roll = rand() % 4;         // 0..3 variation
 
-        monster_health -= player_attack;
-        printf("You hit the %s for %d. Monster HP: %d\n", name, player_attack, monster_health > 0 ? monster_health : 0);
+        int p_attack = player->total_damage + p_roll;
+        int m_attack = m.attack + m_roll;
 
-        if (monster_health <= 0)
-        {
-            printf("You have defeated the %s!\n", name);
-            int loot = (monster_type + 1) * 10 + (rand() % 11); // 10..60-ish
+        int dmg_to_mon = p_attack - m.defense;
+        if (dmg_to_mon < 1) dmg_to_mon = 1;
+
+        mhp -= dmg_to_mon;
+        if (mhp < 0) mhp = 0;
+        printf("You hit the %s for %d. Monster HP: %d\n", m.name, dmg_to_mon, mhp);
+
+        if (mhp <= 0) {
+            printf("You have defeated the %s!\n", m.name);
+            int loot = m.min_loot + (rand() % (m.max_loot - m.min_loot + 1));
             return loot;
         }
 
-        *player_health -= monster_attack;
-        printf("The %s hits you for %d. Your HP: %d\n", name, monster_attack, *player_health > 0 ? *player_health : 0);
+        int dmg_to_player = m_attack - player->total_defense;
+        if (dmg_to_player < 1) dmg_to_player = 1;
+
+        player->health -= dmg_to_player;
+        if (player->health < 0) player->health = 0;
+        printf("The %s hits you for %d. Your HP: %d\n", m.name, dmg_to_player, player->health);
     }
 
     return 0;

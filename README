@@ -1,0 +1,45 @@
+# Adventure
+
+Simple terminal text adventure written in C.
+
+Targeted for the LuckFox Pico (Rockchip RV1103) with 64 MB RAM, but builds and runs on a regular Linux PC as well.
+
+## Features
+
+- Lightweight C11 code, minimal dependencies
+- Random encounters, simple combat, gold and healing events
+- Pure stdin/stdout; no graphics
+
+## Project Layout
+
+- main.c — entry point and game loop
+- dungeon.c/.h — input, movement, room events
+- enemies.c/.h — combat logic
+- Makefile — GNU Make build
+
+## Build
+
+Requires GNU Make and a C compiler.
+
+### Native build (Linux x86_64)
+
+- Install tools (Debian/Ubuntu):
+  - sudo apt update
+  - sudo apt install build-essential
+- Build:
+  - make
+- Run:
+  - ./adventure
+- Clean:
+  - make clean
+
+## Controls
+
+- N/S/E/W — move
+- Q — quit
+
+## Make Targets
+
+- all (default) — builds the adventure binary
+- clean — removes objects and the binary
+
