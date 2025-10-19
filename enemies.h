@@ -3,7 +3,16 @@
 
 #include "player.h"
 
-// Monster definition
+/*
+ * Monster: Represents an enemy creature in the dungeon
+ * name: Display name of the monster (e.g., "Goblin", "Dragon")
+ * hp: Hit points - how much damage needed to defeat
+ * attack: Attack power - base damage dealt to player
+ * defense: Defense stat - reduces damage taken
+ * min_loot: Minimum gold dropped when defeated
+ * max_loot: Maximum gold dropped when defeated
+ * exp_reward: Experience points awarded for defeating this monster
+ */
 typedef struct {
     const char *name;
     int hp;
@@ -14,7 +23,15 @@ typedef struct {
     int exp_reward;
 } Monster;
 
-// Returns gold looted; mutates player->health and may add items
+/*
+ * Battle System
+ */
+
+/* 
+ * Start a turn-based battle with a random monster
+ * Returns: Amount of gold looted from defeated monster (0 if player fled or died)
+ * Side effects: Updates player's health, may add items to inventory
+ */
 int battle_monster(Player *player);
 
 #endif

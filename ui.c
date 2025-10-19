@@ -1,33 +1,69 @@
+/*
+ * ui.c - User Interface and Terminal Rendering
+ * 
+ * This file handles all visual display using ANSI escape codes.
+ * 
+ * Features:
+ * - Terminal control (cursor, clearing, positioning)
+ * - Full screen game interface with borders
+ * - Status panels (player stats, equipment, map)
+ * - Message display with word wrapping
+ * - Box-drawing characters for clean UI
+ * 
+ * ANSI Escape Codes Used:
+ * - \033[2J - Clear screen
+ * - \033[H - Move cursor to home (1,1)
+ * - \033[row;colH - Move cursor to position
+ * - \033[?25l/h - Hide/show cursor
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include "ui.h"
 #include "dungeon.h"
 
-// ANSI escape codes for terminal control
+/*
+ * Terminal Control Functions
+ * These use ANSI escape codes to manipulate the terminal display
+ */
+
+/* Clear the entire screen and reset cursor to top-left */
 void ui_clear_screen(void) {
-    printf("\033[2J");  // Clear entire screen
-    printf("\033[H");   // Move cursor to home position
-    fflush(stdout);
+    printf("\033[2J");  /* ANSI: Clear entire screen */
+    printf("\033[H");   /* ANSI: Move cursor to home position (row 1, col 1) */
+    fflush(stdout);     /* Force output to display immediately */
 }
 
+/* Move cursor to a specific row and column position (1-indexed) */
 void ui_move_cursor(int row, int col) {
-    printf("\033[%d;%dH", row, col);
+    printf("\033[%d;%dH", row, col);  /* ANSI: Position cursor */
     fflush(stdout);
 }
 
+/* Hide the cursor from view (cleaner display) */
 void ui_hide_cursor(void) {
-    printf("\033[?25l");
+    printf("\033[?25l");  /* ANSI: Hide cursor */
     fflush(stdout);
 }
 
+/* Show the cursor (needed for text input) */
 void ui_show_cursor(void) {
-    printf("\033[?25h");
+    printf("\033[?25h");  /* ANSI: Show cursor */
     fflush(stdout);
 }
 
-// Check if position is a special location (copied from dungeon.c)
+/*
+ * Check if a position is a special location (boss or shrine)
+ * Note: This is duplicated from dungeon.c to avoid circular dependencies
+ * 
+ * Returns:
+ *   1 - Boss location (corners)
+ *   2 - Shrine location (cardinal points)
+ *   0 - Normal location
+ */
 static int is_special_location(const Position *pos) {
+    /* Check for boss locations at four corners */
     if ((pos->x == 0 && pos->y == 0) ||
         (pos->x == 0 && pos->y == MAP_SIZE - 1) ||
         (pos->x == MAP_SIZE - 1 && pos->y == 0) ||
@@ -35,6 +71,7 @@ static int is_special_location(const Position *pos) {
         return 1; // Boss location
     }
     
+    /* Check for shrine locations at cardinal directions */
     if ((pos->x == MAP_CENTER && pos->y == 0) ||
         (pos->x == MAP_CENTER && pos->y == MAP_SIZE - 1) ||
         (pos->x == 0 && pos->y == MAP_CENTER) ||
@@ -42,17 +79,44 @@ static int is_special_location(const Position *pos) {
         return 2; // Shrine location
     }
     
-    return 0;
+    return 0;  /* Normal location */
 }
 
-// Render the complete game interface
+/*
+ * Render the complete game interface
+ * 
+ * This is the main rendering function that draws the entire screen layout:
+ * 
+ * Layout (80 columns wide):
+ * ┌────────────────────────────────────────┐
+ * │           TITLE BAR                    │
+ * ├────────────────────────────────────────┤
+ * │ MESSAGE LOG                            │
+ * ├──────────────────┬─────────────────────┤
+ * │ PLAYER STATUS    │  LOCAL MAP VIEW     │
+ * │ - HP, Gold, XP   │  (15x15 area)       │
+ * │ - Attack/Defense │                     │
+ * ├──────────────────┤                     │
+ * │ EQUIPMENT        │                     │
+ * │ - Weapon         │                     │
+ * │ - Armor          │                     │
+ * └──────────────────┴─────────────────────┘
+ * │ CONTROLS (help text)                   │
+ * └────────────────────────────────────────┘
+ * │ Command: _                             │
+ * 
+ * Uses Unicode box-drawing characters for borders
+ */
 void ui_render_game(const Player *player, const Position *pos, const char *message, const Map *map) {
+    /* Clear screen and hide cursor for clean display */
     ui_clear_screen();
     ui_hide_cursor();
     
-    int row, col;
+    int row, col;  /* Variables for cursor positioning */
 
-    // Title bar
+    /* ═══════════════════════════════════════════
+     * TITLE BAR - Game name centered at top
+     * ═══════════════════════════════════════════ */
     row = 1;
     col = 1;
     ui_move_cursor(row, col);
@@ -64,7 +128,10 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     ui_move_cursor(row, col);
     printf("╚════════════════════════════════════════════════════════════════════════════════╝");
     
-    // Message/log area
+    /* ═══════════════════════════════════════════
+     * MESSAGE LOG - Displays recent events
+     * Shows combat results, treasure finds, etc.
+     * ═══════════════════════════════════════════ */
     row = 5;
     col = 2;
     ui_move_cursor(row, col);
@@ -81,34 +148,38 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     ui_move_cursor(row, col);
     printf("│ ");
     
-    // Word wrap the message across multiple lines
+    /* Word wrap the message across multiple lines if needed
+     * Messages longer than 76 characters are split into multiple lines
+     * This ensures long event descriptions display properly */
     if (message && strlen(message) > 0) {
         int msg_len = strlen(message);
-        int max_width = 76;  // Maximum characters per line (80 - border chars)
-        int start = 0;       // Current position in message string
+        int max_width = 76;  /* Maximum characters per line (80 total - 4 for borders) */
+        int start = 0;       /* Current position in message string */
         
-        // Process message in chunks that fit within max_width
+        /* Process message in chunks that fit within max_width */
         while (start < msg_len) {
-            // If not first line, close previous line and start new one
+            /* If not first line, close previous line border and start new line */
             if (start > 0) {
-                printf(" │");
+                printf(" │");  /* Close previous line */
                 row++;
                 ui_move_cursor(row, col);
-                printf("│ ");
+                printf("│ ");  /* Start new line with border */
             }
             
-            // Calculate how many characters to print on this line
+            /* Calculate how many characters to print on this line
+             * If remaining message is shorter than max_width, use remaining length */
             int remaining = msg_len - start;
             int line_len = (remaining > max_width) ? max_width : remaining;
             
-            // Print this line's content, padded to max_width
+            /* Print this line's content, padded to max_width for alignment
+             * %-*.*s format: left-align, max_width total, line_len actual chars */
             printf("%-*.*s", max_width, line_len, message + start);
             
-            // Move to next chunk
+            /* Move to next chunk of the message */
             start += line_len;
         }
     } else {
-        // No message - print empty line
+        /* No message - print empty line with proper padding */
         printf("%-76s", "");
     }
     
@@ -124,7 +195,10 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
 
     printf("┘");
 
-    // Player stats section (left side)
+    /* ═══════════════════════════════════════════
+     * PLAYER STATUS - Left panel showing character stats
+     * Displays: Level, HP, XP, Gold, Attack, Defense
+     * ═══════════════════════════════════════════ */
     row = 10;
     col = 2;
     ui_move_cursor(row, col);
@@ -151,7 +225,10 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     ui_move_cursor(row, col);
     printf("└──────────────────────────────────────┘");
     
-    // Equipment section
+    /* ═══════════════════════════════════════════
+     * EQUIPMENT - Shows currently equipped items
+     * Displays weapon and armor slots
+     * ═══════════════════════════════════════════ */
     row = 19;
     col = 2;
     ui_move_cursor(row, col);
@@ -176,7 +253,11 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     ui_move_cursor(row, col);
     printf("└──────────────────────────────────────┘");
     
-    // Map section (right side)
+    /* ═══════════════════════════════════════════
+     * MAP VIEW - Right panel showing local area
+     * Displays 15x15 tile area centered on player
+     * Shows: @ (player), + (spawn), B (boss), S (shrine), # (wall), · (floor)
+     * ═══════════════════════════════════════════ */
     int map_start_col = 45;
     int view_range = 7;
     int min_x = pos->x - view_range;
@@ -195,40 +276,50 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     printf("┌─ MAP (Position: %2d, %2d) ─────┐", pos->x, pos->y);
     
     row++;
-    // Map section (right side) - update the rendering loop
-    row = 11;  // Adjust as needed
+    
+    /* Render the visible map area, tile by tile
+     * Each tile is represented by a two-character symbol */
+    row = 11;  /* Start rendering map at row 11 */
     for (int y = min_y; y <= max_y; y++) {
         ui_move_cursor(row, col);
-        printf("│ ");
+        printf("│ ");  /* Left border */
+        
+        /* Render each tile in this row */
         for (int x = min_x; x <= max_x; x++) {
+            /* Determine what symbol to display for this tile
+             * Priority: player > spawn > special locations > tile type */
+            
             if (x == pos->x && y == pos->y) {
-                printf(" @");  // Player
+                /* Player's current position */
+                printf(" @");
             } else if (x == MAP_CENTER && y == MAP_CENTER) {
-                printf(" +");  // Spawn
+                /* Spawn point at center of map */
+                printf(" +");
             } else {
+                /* Check for special locations and tile types */
                 Position check = {x, y};
                 int special = is_special_location(&check);
                 TileType tile = map_get_tile(map, x, y);
                 
                 if (special == 1) {
-                    printf(" B");  // Boss
+                    printf(" B");  /* Boss lair (corners) */
                 } else if (special == 2) {
-                    printf(" S");  // Shrine
+                    printf(" S");  /* Ancient shrine (cardinal points) */
                 } else if (tile == TILE_WALL) {
-                    printf(" #");  // Wall
+                    printf(" #");  /* Impassable wall */
                 } else {
-                    printf(" ·");  // Floor/Corridor
+                    printf(" ·");  /* Walkable floor or corridor */
                 }
             }
         }
-        printf(" │");
+        printf(" │");  /* Right border */
         row++;
     }
     
     ui_move_cursor(row, col);
     printf("└────────────────────────────────────┘");
     
-    // Legend
+    /* Display map legend explaining symbols */
     row++;
     ui_move_cursor(row, col);
     printf("  @ = You  + = Spawn  B = Boss");
@@ -236,7 +327,9 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     ui_move_cursor(row, col);
     printf("  S = Shrine  · = Empty");
     
-    // Controls
+    /* ═══════════════════════════════════════════
+     * CONTROLS - Help text showing available commands
+     * ═══════════════════════════════════════════ */
     row = 30;
     col = 2;
     ui_move_cursor(row, col);
@@ -263,7 +356,9 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
 
     printf("┘");
 
-    // Command prompt
+    /* ═══════════════════════════════════════════
+     * COMMAND PROMPT - Where player enters commands
+     * ═══════════════════════════════════════════ */
     row = 35;
     col = 2;
     ui_move_cursor(row, col);
