@@ -224,7 +224,7 @@ int player_add_item(Player *p, const Item *item) {
     
     /* Item doesn't stack or is not consumable - add as new inventory entry
      * Copy the entire item structure into the next available slot */
-    p->inventory[p->inv_count] = *item;  /* Note: * dereferences pointer to copy value */
+    p->inventory[p->inv_count] = *item;  /* Note: *item copies the struct by value */
     printf("Picked up %s!\n", item->name);
     p->inv_count++;  /* Increment item count */
     return 1;  /* Success - new item added */

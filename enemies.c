@@ -174,14 +174,14 @@ int battle_monster(Player *player)
                     int wpn_idx = rand() % 4;  /* Pick random weapon type */
                     int dmg_bonus = 8 + rand() % 10;  /* Damage bonus: 8-17 */
                     drop = (Item){20 + wpn_idx, ITEM_WEAPON, weapon_names[wpn_idx], 1, (ItemStats){dmg_bonus, 0}, 20 + dmg_bonus * 2};
-                } 
+                }
                 /* 20% chance: Armor with random defense bonus */
                 else if (drop_type < 80) {
                     const char *armor_names[] = {"Leather Armor", "Chain Mail", "Plate Armor", "Dragon Scale"};
                     int arm_idx = rand() % 4;  /* Pick random armor type */
                     int def_bonus = 4 + rand() % 8;  /* Defense bonus: 4-11 */
                     drop = (Item){30 + arm_idx, ITEM_ARMOR, armor_names[arm_idx], 1, (ItemStats){0, def_bonus}, 15 + def_bonus * 2};
-                } 
+                }
                 /* 20% chance: Valuable gem (misc item) */
                 else {
                     drop = (Item){40, ITEM_MISC, "Gem", 1, (ItemStats){0, 0}, 50 + rand() % 50};

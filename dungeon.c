@@ -20,11 +20,12 @@
 
 /*
  * Direction arrays for maze generation
- * Used to move in four cardinal directions: North, East, South, West
+ * Used to move in four cardinal directions
+ * Index 0=North, 1=East, 2=South, 3=West
  * dx[i] gives the X offset, dy[i] gives the Y offset
  */
-static const int dx[] = {0, 1, 0, -1};  /* X offsets: Right=1, Left=-1, No change=0 */
-static const int dy[] = {-1, 0, 1, 0};  /* Y offsets: Up=-1, Down=1, No change=0 */
+static const int dx[] = {0, 1, 0, -1};  /* X offsets for each direction */
+static const int dy[] = {-1, 0, 1, 0};  /* Y offsets for each direction */
 
 /*
  * Calculate distance from spawn point (center of map)

@@ -32,7 +32,7 @@
 void ui_clear_screen(void) {
     printf("\033[2J");  /* ANSI: Clear entire screen */
     printf("\033[H");   /* ANSI: Move cursor to home position (row 1, col 1) */
-    fflush(stdout);     /* Force output to display immediately */
+    fflush(stdout);     /* Force output to display immediately as atomic operation */
 }
 
 /* Move cursor to a specific row and column position (1-indexed) */
@@ -85,27 +85,18 @@ static int is_special_location(const Position *pos) {
 /*
  * Render the complete game interface
  * 
- * This is the main rendering function that draws the entire screen layout:
+ * This is the main rendering function that draws the entire screen layout.
+ * The screen is organized into several sections:
  * 
- * Layout (80 columns wide):
- * ┌────────────────────────────────────────┐
- * │           TITLE BAR                    │
- * ├────────────────────────────────────────┤
- * │ MESSAGE LOG                            │
- * ├──────────────────┬─────────────────────┤
- * │ PLAYER STATUS    │  LOCAL MAP VIEW     │
- * │ - HP, Gold, XP   │  (15x15 area)       │
- * │ - Attack/Defense │                     │
- * ├──────────────────┤                     │
- * │ EQUIPMENT        │                     │
- * │ - Weapon         │                     │
- * │ - Armor          │                     │
- * └──────────────────┴─────────────────────┘
- * │ CONTROLS (help text)                   │
- * └────────────────────────────────────────┘
- * │ Command: _                             │
+ * - TITLE BAR: Game name at the top
+ * - MESSAGE LOG: Shows recent events (combat, treasure, etc.)
+ * - PLAYER STATUS: HP, Gold, Level, XP, Attack, Defense (left panel)
+ * - EQUIPMENT: Currently equipped weapon and armor (left panel)
+ * - LOCAL MAP: 15x15 tile view centered on player (right panel)
+ * - CONTROLS: Help text showing available commands
+ * - COMMAND PROMPT: Where player enters input
  * 
- * Uses Unicode box-drawing characters for borders
+ * Uses Unicode box-drawing characters (┌─┐│└┘├┤┬┴┼) for clean borders
  */
 void ui_render_game(const Player *player, const Position *pos, const char *message, const Map *map) {
     /* Clear screen and hide cursor for clean display */
