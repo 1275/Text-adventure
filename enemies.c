@@ -3,16 +3,6 @@
 #include "enemies.h"
 #include "player.h"
 
-typedef struct {
-    const char *name;
-    int hp;
-    int attack;
-    int defense;
-    int min_loot;
-    int max_loot;
-    int exp_reward;
-} Monster;
-
 int battle_monster(Player *player)
 {
     static const Monster monsters[] = {

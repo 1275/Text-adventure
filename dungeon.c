@@ -61,16 +61,6 @@ void search_room(Player *player, Position *pos)
         printf("A massive Ancient Dragon guards a treasure hoard!\n");
         
         // Create a powerful boss
-        typedef struct {
-            const char *name;
-            int hp;
-            int attack;
-            int defense;
-            int min_loot;
-            int max_loot;
-            int exp_reward;
-        } Monster;
-        
         Monster boss = {"Ancient Dragon", 250, 30, 12, 150, 300, 500};
         int mhp = boss.hp;
         printf("The %s roars with %d HP!\n", boss.name, mhp);
