@@ -32,6 +32,10 @@ void player_init(Player *p) {
     p->health       = p->max_health;
     p->gold         = 0;
 
+    p->level        = 1;
+    p->experience   = 0;
+    p->exp_to_next_level = 100;
+
     p->base_damage  = 10;
     p->base_defense = 5;
 
@@ -48,8 +52,9 @@ void player_init(Player *p) {
 }
 
 void player_print_status(const Player *p) {
-    printf("HP: %d/%d, Gold: %d, Dmg: %d, Def: %d\n",
-           p->health, p->max_health, p->gold, p->total_damage, p->total_defense);
+    printf("HP: %d/%d, Gold: %d, Dmg: %d, Def: %d | Level: %d, XP: %d/%d\n",
+           p->health, p->max_health, p->gold, p->total_damage, p->total_defense,
+           p->level, p->experience, p->exp_to_next_level);
 }
 
 void player_print_inventory(const Player *p) {
@@ -69,4 +74,57 @@ void player_print_inventory(const Player *p) {
         printf("  value:%d\n", it->value);
     }
     printf("\n");
+}
+
+void player_level_up(Player *p) {
+    p->level++;
+    
+    // Stat increases per level
+    p->max_health += 20;
+    p->health = p->max_health; // Full heal on level up
+    p->base_damage += 3;
+    p->base_defense += 2;
+    
+    // Calculate next level requirement (exponential growth)
+    p->exp_to_next_level = 100 + (p->level - 1) * 50;
+    
+    printf("\n*** LEVEL UP! You are now level %d! ***\n", p->level);
+    printf("Max HP +20 (now %d), Damage +3 (now %d), Defense +2 (now %d)\n",
+           p->max_health, p->base_damage, p->base_defense);
+    printf("HP fully restored!\n\n");
+    
+    player_apply_equipment(p);
+}
+
+void player_gain_exp(Player *p, int exp) {
+    p->experience += exp;
+    printf("You gained %d experience! (%d/%d)\n", exp, p->experience, p->exp_to_next_level);
+    
+    while (p->experience >= p->exp_to_next_level) {
+        p->experience -= p->exp_to_next_level;
+        player_level_up(p);
+    }
+}
+
+int player_add_item(Player *p, const Item *item) {
+    // Check if inventory is full
+    if (p->inv_count >= MAX_INVENTORY) {
+        printf("Your inventory is full! Cannot pick up %s.\n", item->name);
+        return 0;
+    }
+    
+    // Check if we already have this item (for stackable items)
+    for (int i = 0; i < p->inv_count; i++) {
+        if (p->inventory[i].id == item->id && p->inventory[i].type == ITEM_CONSUMABLE) {
+            p->inventory[i].quantity += item->quantity;
+            printf("Picked up %s x%d (now have %d)\n", item->name, item->quantity, p->inventory[i].quantity);
+            return 1;
+        }
+    }
+    
+    // Add new item to inventory
+    p->inventory[p->inv_count] = *item;
+    printf("Picked up %s!\n", item->name);
+    p->inv_count++;
+    return 1;
 }

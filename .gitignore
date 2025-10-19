@@ -1,0 +1,9 @@
+# Build artifacts
+*.o
+adventure
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
