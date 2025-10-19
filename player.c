@@ -105,3 +105,26 @@ void player_gain_exp(Player *p, int exp) {
         player_level_up(p);
     }
 }
+
+int player_add_item(Player *p, const Item *item) {
+    // Check if inventory is full
+    if (p->inv_count >= MAX_INVENTORY) {
+        printf("Your inventory is full! Cannot pick up %s.\n", item->name);
+        return 0;
+    }
+    
+    // Check if we already have this item (for stackable items)
+    for (int i = 0; i < p->inv_count; i++) {
+        if (p->inventory[i].id == item->id && p->inventory[i].type == ITEM_CONSUMABLE) {
+            p->inventory[i].quantity += item->quantity;
+            printf("Picked up %s x%d (now have %d)\n", item->name, item->quantity, p->inventory[i].quantity);
+            return 1;
+        }
+    }
+    
+    // Add new item to inventory
+    p->inventory[p->inv_count] = *item;
+    printf("Picked up %s!\n", item->name);
+    p->inv_count++;
+    return 1;
+}

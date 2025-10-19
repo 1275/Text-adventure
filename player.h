@@ -64,6 +64,9 @@ void player_apply_equipment(Player *p);
 void player_gain_exp(Player *p, int exp);
 void player_level_up(Player *p);
 
+// Inventory management
+int player_add_item(Player *p, const Item *item);
+
 // Utility display
 void player_print_status(const Player *p);
 void player_print_inventory(const Player *p);

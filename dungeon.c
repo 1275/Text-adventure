@@ -13,6 +13,27 @@ static int distance_from_center(const Position *pos) {
     return (int)sqrt(dx * dx + dy * dy);
 }
 
+// Check if position is a special location
+static int is_special_location(const Position *pos) {
+    // Corners of the map
+    if ((pos->x == 0 && pos->y == 0) ||
+        (pos->x == 0 && pos->y == MAP_SIZE - 1) ||
+        (pos->x == MAP_SIZE - 1 && pos->y == 0) ||
+        (pos->x == MAP_SIZE - 1 && pos->y == MAP_SIZE - 1)) {
+        return 1; // Boss location
+    }
+    
+    // Special locations at cardinal directions from center
+    if ((pos->x == MAP_CENTER && pos->y == 0) ||
+        (pos->x == MAP_CENTER && pos->y == MAP_SIZE - 1) ||
+        (pos->x == 0 && pos->y == MAP_CENTER) ||
+        (pos->x == MAP_SIZE - 1 && pos->y == MAP_CENTER)) {
+        return 2; // Shrine location
+    }
+    
+    return 0;
+}
+
 void print_status(int hp, int gold)
 {
     printf("HP : %d, Gold: %d\n", hp, gold);
@@ -32,6 +53,86 @@ char read_command(void)
 
 void search_room(Player *player, Position *pos)
 {
+    int special = is_special_location(pos);
+    
+    // Special boss locations at corners
+    if (special == 1) {
+        printf("\n*** You've discovered a BOSS LAIR! ***\n");
+        printf("A massive Ancient Dragon guards a treasure hoard!\n");
+        
+        // Create a powerful boss
+        typedef struct {
+            const char *name;
+            int hp;
+            int attack;
+            int defense;
+            int min_loot;
+            int max_loot;
+            int exp_reward;
+        } Monster;
+        
+        Monster boss = {"Ancient Dragon", 250, 30, 12, 150, 300, 500};
+        int mhp = boss.hp;
+        printf("The %s roars with %d HP!\n", boss.name, mhp);
+        
+        while (mhp > 0 && player->health > 0) {
+            int p_roll = rand() % 8;
+            int m_roll = rand() % 6;
+            
+            int p_attack = player->total_damage + p_roll;
+            int m_attack = boss.attack + m_roll;
+            
+            int dmg_to_mon = p_attack - boss.defense;
+            if (dmg_to_mon < 1) dmg_to_mon = 1;
+            
+            mhp -= dmg_to_mon;
+            if (mhp < 0) mhp = 0;
+            printf("You strike the %s for %d damage! Boss HP: %d\n", boss.name, dmg_to_mon, mhp);
+            
+            if (mhp <= 0) {
+                printf("\n*** VICTORY! You have slain the %s! ***\n", boss.name);
+                int loot = boss.min_loot + (rand() % (boss.max_loot - boss.min_loot + 1));
+                player->gold += loot;
+                printf("You claim %d gold from the hoard!\n", loot);
+                player_gain_exp(player, boss.exp_reward);
+                
+                // Boss always drops legendary item
+                Item legendary = (Item){100, ITEM_WEAPON, "Legendary Dragonslayer", 1, {25, 5}, 500};
+                player_add_item(player, &legendary);
+                return;
+            }
+            
+            int dmg_to_player = m_attack - player->total_defense;
+            if (dmg_to_player < 1) dmg_to_player = 1;
+            
+            player->health -= dmg_to_player;
+            if (player->health < 0) player->health = 0;
+            printf("The %s breathes fire, dealing %d damage! Your HP: %d\n", boss.name, dmg_to_player, player->health);
+        }
+        return;
+    }
+    
+    // Special shrine locations
+    if (special == 2) {
+        printf("\n*** You've found an Ancient Shrine! ***\n");
+        int choice = rand() % 3;
+        if (choice == 0) {
+            int heal = 50 + rand() % 50;
+            player->health += heal;
+            if (player->health > player->max_health) player->health = player->max_health;
+            printf("The shrine's holy light restores %d HP!\n", heal);
+        } else if (choice == 1) {
+            int gold = 75 + rand() % 75;
+            player->gold += gold;
+            printf("You find %d gold in offerings at the shrine!\n", gold);
+        } else {
+            int exp = 50 + rand() % 100;
+            printf("You pray at the shrine and gain wisdom!\n");
+            player_gain_exp(player, exp);
+        }
+        return;
+    }
+    
     int dist = distance_from_center(pos);
     int difficulty = dist / 5; // Difficulty increases every 5 tiles from center
     
@@ -110,12 +211,20 @@ void print_map(const Position *pos) {
             } else if (x == MAP_CENTER && y == MAP_CENTER) {
                 printf(" +");  // Spawn point
             } else {
-                printf(" .");  // Empty
+                Position check = {x, y};
+                int special = is_special_location(&check);
+                if (special == 1) {
+                    printf(" B");  // Boss location
+                } else if (special == 2) {
+                    printf(" S");  // Shrine location
+                } else {
+                    printf(" .");  // Empty
+                }
             }
         }
         printf("\n");
     }
-    printf("Legend: @ = You, + = Spawn (center), . = Unexplored\n");
+    printf("Legend: @ = You, + = Spawn, B = Boss, S = Shrine, . = Unexplored\n");
     printf("Map size: %dx%d\n\n", MAP_SIZE, MAP_SIZE);
 }
 

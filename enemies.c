@@ -50,6 +50,35 @@ int battle_monster(Player *player)
             printf("You have defeated the %s!\n", m.name);
             int loot = m.min_loot + (rand() % (m.max_loot - m.min_loot + 1));
             player_gain_exp(player, m.exp_reward);
+            
+            // Random item drops (30% chance)
+            if (rand() % 100 < 30) {
+                Item drop;
+                int drop_type = rand() % 100;
+                
+                if (drop_type < 40) {
+                    // Health potion
+                    drop = (Item){10, ITEM_CONSUMABLE, "Health Potion", 1, {0, 0}, 10};
+                } else if (drop_type < 60) {
+                    // Better weapon
+                    const char *weapon_names[] = {"Iron Sword", "Steel Axe", "War Hammer", "Enchanted Blade"};
+                    int wpn_idx = rand() % 4;
+                    int dmg_bonus = 8 + rand() % 10;
+                    drop = (Item){20 + wpn_idx, ITEM_WEAPON, weapon_names[wpn_idx], 1, {dmg_bonus, 0}, 20 + dmg_bonus * 2};
+                } else if (drop_type < 80) {
+                    // Better armor
+                    const char *armor_names[] = {"Leather Armor", "Chain Mail", "Plate Armor", "Dragon Scale"};
+                    int arm_idx = rand() % 4;
+                    int def_bonus = 4 + rand() % 8;
+                    drop = (Item){30 + arm_idx, ITEM_ARMOR, armor_names[arm_idx], 1, {0, def_bonus}, 15 + def_bonus * 2};
+                } else {
+                    // Valuable item
+                    drop = (Item){40, ITEM_MISC, "Gem", 1, {0, 0}, 50 + rand() % 50};
+                }
+                
+                player_add_item(player, &drop);
+            }
+            
             return loot;
         }
 
