@@ -10,16 +10,19 @@ typedef struct {
     int defense;
     int min_loot;
     int max_loot;
+    int exp_reward;
 } Monster;
 
 int battle_monster(Player *player)
 {
     static const Monster monsters[] = {
-        {"Goblin",       30,  7, 1,  8, 20},
-        {"Skeleton",     40,  9, 2, 12, 26},
-        {"Giant Spider", 50, 11, 3, 15, 30},
-        {"Orc",          60, 13, 4, 20, 35},
-        {"Troll",        80, 16, 5, 30, 45},
+        {"Goblin",       30,  7, 1,  8, 20,  25},
+        {"Skeleton",     40,  9, 2, 12, 26,  35},
+        {"Giant Spider", 50, 11, 3, 15, 30,  45},
+        {"Orc",          60, 13, 4, 20, 35,  60},
+        {"Troll",        80, 16, 5, 30, 45,  80},
+        {"Dark Knight", 100, 20, 7, 40, 60, 120},
+        {"Dragon",      150, 25, 9, 60, 100, 200},
     };
     const int mcount = (int)(sizeof(monsters)/sizeof(monsters[0]));
     int idx = rand() % mcount;
@@ -46,6 +49,7 @@ int battle_monster(Player *player)
         if (mhp <= 0) {
             printf("You have defeated the %s!\n", m.name);
             int loot = m.min_loot + (rand() % (m.max_loot - m.min_loot + 1));
+            player_gain_exp(player, m.exp_reward);
             return loot;
         }
 

@@ -1,9 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 #include "dungeon.h"
 #include "enemies.h"
 #include "player.h"
+
+// Calculate distance from center (difficulty scaling)
+static int distance_from_center(const Position *pos) {
+    int dx = pos->x - MAP_CENTER;
+    int dy = pos->y - MAP_CENTER;
+    return (int)sqrt(dx * dx + dy * dy);
+}
 
 void print_status(int hp, int gold)
 {
@@ -13,7 +21,7 @@ void print_status(int hp, int gold)
 char read_command(void)
 {
     char command;
-    printf("Enter command (N/S/E/W to move, Q to quit): ");
+    printf("Enter command (N/S/E/W to move, M for map, Q to quit): ");
     if (scanf(" %c", &command) != 1) {
         return 'Q';
     }
@@ -22,87 +30,151 @@ char read_command(void)
     return command;
 }
 
-void search_room(Player *player, int *current_room)
+void search_room(Player *player, Position *pos)
 {
-    int event = rand() % 8;
-    switch (event)
-    {
-    case 0: {
-        int gold = 10 + rand() % 41; // 10..50
-        player->gold += gold;
-        printf("You found a hidden chest with %d gold!\n", gold);
-        break;
-    }
-    case 1: {
-        int dmg = 5 + rand() % 16; // 5..20
+    int dist = distance_from_center(pos);
+    int difficulty = dist / 5; // Difficulty increases every 5 tiles from center
+    
+    // More dangerous events further from center
+    int event_roll = rand() % 100;
+    int trap_threshold = 10 + difficulty * 2;
+    int monster_threshold = trap_threshold + 20 + difficulty * 3;
+    int treasure_threshold = monster_threshold + 15;
+    
+    if (event_roll < trap_threshold) {
+        int dmg = 5 + rand() % 16 + difficulty * 2;
         player->health -= dmg;
         if (player->health < 0) player->health = 0;
         printf("A trap is triggered! You take %d damage.\n", dmg);
-        break;
     }
-    case 2:
-        printf("You encounter a person. They nod silently and pass by.\n");
-        break;
-    case 3: {
-        int heal = 10 + rand() % 21; // 10..30
-        player->health += heal;
-        if (player->health > player->max_health) player->health = player->max_health;
-        printf("You find a healing potion and recover %d HP. HP now %d.\n", heal, player->health);
-        break;
-    }
-    case 4: {
+    else if (event_roll < monster_threshold) {
         printf("A monster appears! Prepare for battle.\n");
         int loot = battle_monster(player);
         if (player->health > 0) {
             player->gold += loot;
             printf("You loot %d gold from the corpse.\n", loot);
         }
-        break;
     }
-    case 5:
-        (*current_room)++;
-        printf("A secret passage leads you to room %d.\n", *current_room);
-        break;
-    case 6:
-        printf("You find nothing of interest.\n");
-        break;
-    case 7: {
-        int gold = 100 + rand() % 51; // 100..150
+    else if (event_roll < treasure_threshold) {
+        int gold = 10 + rand() % 41 + difficulty * 5;
+        player->gold += gold;
+        printf("You found a hidden chest with %d gold!\n", gold);
+    }
+    else if (event_roll < treasure_threshold + 15) {
+        int heal = 10 + rand() % 21;
+        player->health += heal;
+        if (player->health > player->max_health) player->health = player->max_health;
+        printf("You find a healing potion and recover %d HP. HP now %d.\n", heal, player->health);
+    }
+    else if (event_roll < treasure_threshold + 20) {
+        int gold = 100 + rand() % 51 + difficulty * 10;
         player->gold += gold;
         printf("An ancient artifact! You sell it for %d gold.\n", gold);
-        break;
     }
+    else if (event_roll < treasure_threshold + 25) {
+        printf("You encounter a wandering merchant. They nod and pass by.\n");
+    }
+    else {
+        printf("You find nothing of interest in this area.\n");
     }
 }
 
-void handle_command(char command, int *running, int *current_room, Player *player)
+void print_map(const Position *pos) {
+    printf("\n=== MAP (you are at [%d, %d]) ===\n", pos->x, pos->y);
+    
+    // Show a 15x15 area around the player
+    int view_range = 7;
+    int min_x = pos->x - view_range;
+    int max_x = pos->x + view_range;
+    int min_y = pos->y - view_range;
+    int max_y = pos->y + view_range;
+    
+    // Clamp to map boundaries
+    if (min_x < 0) min_x = 0;
+    if (max_x >= MAP_SIZE) max_x = MAP_SIZE - 1;
+    if (min_y < 0) min_y = 0;
+    if (max_y >= MAP_SIZE) max_y = MAP_SIZE - 1;
+    
+    // Print column headers
+    printf("   ");
+    for (int x = min_x; x <= max_x; x++) {
+        printf("%2d", x % 10);
+    }
+    printf("\n");
+    
+    for (int y = min_y; y <= max_y; y++) {
+        printf("%2d ", y);
+        for (int x = min_x; x <= max_x; x++) {
+            if (x == pos->x && y == pos->y) {
+                printf(" @");  // Player position
+            } else if (x == MAP_CENTER && y == MAP_CENTER) {
+                printf(" +");  // Spawn point
+            } else {
+                printf(" .");  // Empty
+            }
+        }
+        printf("\n");
+    }
+    printf("Legend: @ = You, + = Spawn (center), . = Unexplored\n");
+    printf("Map size: %dx%d\n\n", MAP_SIZE, MAP_SIZE);
+}
+
+void handle_command(char command, int *running, Position *pos, Player *player)
 {
+    int moved = 0;
+    Position new_pos = *pos;
+    
     switch (command)
     {
     case 'Q':
         *running = 0;
         printf("Quitting the game. Thanks for playing!\n");
-        break;
+        return;
+    case 'M':
+        print_map(pos);
+        return;
     case 'N':
-        (*current_room)++;
-        printf("You move north to room %d.\n", *current_room);
-        search_room(player, current_room);
+        if (pos->y > 0) {
+            new_pos.y--;
+            moved = 1;
+        } else {
+            printf("You cannot go north - you've reached the edge of the world!\n");
+        }
         break;
     case 'S':
-        *current_room = (*current_room > 1) ? *current_room - 1 : 1;
-        printf("You move south to room %d.\n", *current_room);
-        search_room(player, current_room);
+        if (pos->y < MAP_SIZE - 1) {
+            new_pos.y++;
+            moved = 1;
+        } else {
+            printf("You cannot go south - you've reached the edge of the world!\n");
+        }
         break;
     case 'E':
-        printf("You move east.\n");
-        search_room(player, current_room);
+        if (pos->x < MAP_SIZE - 1) {
+            new_pos.x++;
+            moved = 1;
+        } else {
+            printf("You cannot go east - you've reached the edge of the world!\n");
+        }
         break;
     case 'W':
-        printf("You move west.\n");
-        search_room(player, current_room);
+        if (pos->x > 0) {
+            new_pos.x--;
+            moved = 1;
+        } else {
+            printf("You cannot go west - you've reached the edge of the world!\n");
+        }
         break;
     default:
         printf("Invalid command. Please try again.\n");
-        break;
+        return;
+    }
+    
+    if (moved) {
+        *pos = new_pos;
+        int dist = distance_from_center(pos);
+        printf("You move to position [%d, %d] (distance from center: %d)\n", 
+               pos->x, pos->y, dist);
+        search_room(player, pos);
     }
 }

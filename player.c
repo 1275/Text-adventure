@@ -32,6 +32,10 @@ void player_init(Player *p) {
     p->health       = p->max_health;
     p->gold         = 0;
 
+    p->level        = 1;
+    p->experience   = 0;
+    p->exp_to_next_level = 100;
+
     p->base_damage  = 10;
     p->base_defense = 5;
 
@@ -48,8 +52,9 @@ void player_init(Player *p) {
 }
 
 void player_print_status(const Player *p) {
-    printf("HP: %d/%d, Gold: %d, Dmg: %d, Def: %d\n",
-           p->health, p->max_health, p->gold, p->total_damage, p->total_defense);
+    printf("HP: %d/%d, Gold: %d, Dmg: %d, Def: %d | Level: %d, XP: %d/%d\n",
+           p->health, p->max_health, p->gold, p->total_damage, p->total_defense,
+           p->level, p->experience, p->exp_to_next_level);
 }
 
 void player_print_inventory(const Player *p) {
@@ -69,4 +74,34 @@ void player_print_inventory(const Player *p) {
         printf("  value:%d\n", it->value);
     }
     printf("\n");
+}
+
+void player_level_up(Player *p) {
+    p->level++;
+    
+    // Stat increases per level
+    p->max_health += 20;
+    p->health = p->max_health; // Full heal on level up
+    p->base_damage += 3;
+    p->base_defense += 2;
+    
+    // Calculate next level requirement (exponential growth)
+    p->exp_to_next_level = 100 + (p->level - 1) * 50;
+    
+    printf("\n*** LEVEL UP! You are now level %d! ***\n", p->level);
+    printf("Max HP +20 (now %d), Damage +3 (now %d), Defense +2 (now %d)\n",
+           p->max_health, p->base_damage, p->base_defense);
+    printf("HP fully restored!\n\n");
+    
+    player_apply_equipment(p);
+}
+
+void player_gain_exp(Player *p, int exp) {
+    p->experience += exp;
+    printf("You gained %d experience! (%d/%d)\n", exp, p->experience, p->exp_to_next_level);
+    
+    while (p->experience >= p->exp_to_next_level) {
+        p->experience -= p->exp_to_next_level;
+        player_level_up(p);
+    }
 }

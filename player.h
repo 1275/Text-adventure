@@ -35,6 +35,11 @@ typedef struct {
     int health;
     int gold;
 
+    // Experience and leveling
+    int level;
+    int experience;
+    int exp_to_next_level;
+
     // Base stats (without equipment)
     int base_damage;
     int base_defense;
@@ -54,6 +59,10 @@ void player_init(Player *p);
 
 // Recompute total_damage/total_defense from base + equipped items
 void player_apply_equipment(Player *p);
+
+// Experience and leveling
+void player_gain_exp(Player *p, int exp);
+void player_level_up(Player *p);
 
 // Utility display
 void player_print_status(const Player *p);
