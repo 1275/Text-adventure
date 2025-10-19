@@ -11,13 +11,15 @@ int main(void)
 
     Player player;
     player_init(&player);
+    
+    Map map;
+    map_generate(&map);
 
     Position pos = {MAP_CENTER, MAP_CENTER};
     int running = 1;
-    char message[256] = "Welcome to the Dungeon! You are at the center of the map.";
+    char message[256] = "Whoa! You trigger a magical portal and find yourself in a mysterious dungeon...";
 
-    // Initial render
-    ui_render_game(&player, &pos, message);
+    ui_render_game(&player, &pos, message, &map);
 
     while (running)
     {
@@ -26,12 +28,10 @@ int main(void)
             break;
         }
         
-        // Handle command (this will modify player and pos)
-        handle_command(command, &running, &pos, &player, message);
+        handle_command(command, &running, &pos, &player, message, &map);
         
-        // Re-render the screen
         if (running) {
-            ui_render_game(&player, &pos, message);
+            ui_render_game(&player, &pos, message, &map);
         }
 
         if (player.health <= 0)

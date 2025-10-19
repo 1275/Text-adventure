@@ -46,54 +46,134 @@ static int is_special_location(const Position *pos) {
 }
 
 // Render the complete game interface
-void ui_render_game(const Player *player, const Position *pos, const char *message) {
+void ui_render_game(const Player *player, const Position *pos, const char *message, const Map *map) {
     ui_clear_screen();
     ui_hide_cursor();
     
+    int row, col;
+
     // Title bar
-    ui_move_cursor(1, 1);
+    row = 1;
+    col = 1;
+    ui_move_cursor(row, col);
     printf("╔════════════════════════════════════════════════════════════════════════════════╗");
-    ui_move_cursor(2, 1);
+    row++;
+    ui_move_cursor(row, col);
     printf("║                        DUNGEON CRAWLER ADVENTURE                               ║");
-    ui_move_cursor(3, 1);
+    row++;
+    ui_move_cursor(row, col);
     printf("╚════════════════════════════════════════════════════════════════════════════════╝");
     
+    // Message/log area
+    row = 5;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ MESSAGE LOG ");
+    // Total width should be 80 characters (to match the bottom border)
+    // "┌─ MESSAGE LOG " is 15 characters, "┐" is 1 character
+    // So we need 80 - 15 - 1 = 64 more "─" characters
+    for (int i = 0; i < 64; i++) {
+        printf("─");
+    }
+    printf("┐\n");
+    col = 2;
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ ");
+    
+    // Word wrap the message across multiple lines
+    if (message && strlen(message) > 0) {
+        int msg_len = strlen(message);
+        int max_width = 76;  // Maximum characters per line (80 - border chars)
+        int start = 0;       // Current position in message string
+        
+        // Process message in chunks that fit within max_width
+        while (start < msg_len) {
+            // If not first line, close previous line and start new one
+            if (start > 0) {
+                printf(" │");
+                row++;
+                ui_move_cursor(row, col);
+                printf("│ ");
+            }
+            
+            // Calculate how many characters to print on this line
+            int remaining = msg_len - start;
+            int line_len = (remaining > max_width) ? max_width : remaining;
+            
+            // Print this line's content, padded to max_width
+            printf("%-*.*s", max_width, line_len, message + start);
+            
+            // Move to next chunk
+            start += line_len;
+        }
+    } else {
+        // No message - print empty line
+        printf("%-76s", "");
+    }
+    
+    printf(" │");
+    
+    row++;
+    ui_move_cursor(row, col);
+    printf("└");
+    for (int i = 0; i < 78; i++)
+    {
+        printf("─");
+    }
+
+    printf("┘");
+
     // Player stats section (left side)
-    ui_move_cursor(5, 2);
+    row = 10;
+    col = 2;
+    ui_move_cursor(row, col);
     printf("┌─ PLAYER STATUS ─────────────────────┐");
-    ui_move_cursor(6, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│ Level: %-2d     HP: %3d/%-3d         │", player->level, player->health, player->max_health);
-    ui_move_cursor(7, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│ XP: %4d/%4d                     │", player->experience, player->exp_to_next_level);
-    ui_move_cursor(8, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│ Gold: %-6d                       │", player->gold);
-    ui_move_cursor(9, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│                                      │");
-    ui_move_cursor(10, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│ Attack:  %-3d  (base %-2d)          │", player->total_damage, player->base_damage);
-    ui_move_cursor(11, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("│ Defense: %-3d  (base %-2d)          │", player->total_defense, player->base_defense);
-    ui_move_cursor(12, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("└──────────────────────────────────────┘");
     
     // Equipment section
-    ui_move_cursor(14, 2);
+    row = 19;
+    col = 2;
+    ui_move_cursor(row, col);
     printf("┌─ EQUIPMENT ─────────────────────────┐");
-    ui_move_cursor(15, 2);
+    row++;
+    ui_move_cursor(row, col);
     if (player->equipped.weapon_slot != INVALID_SLOT) {
         const Item *w = &player->inventory[player->equipped.weapon_slot];
         printf("│ Weapon: %-28s │", w->name);
     } else {
         printf("│ Weapon: (none)                       │");
     }
-    ui_move_cursor(16, 2);
+    row++;
+    ui_move_cursor(row, col);
     if (player->equipped.armor_slot != INVALID_SLOT) {
         const Item *a = &player->inventory[player->equipped.armor_slot];
         printf("│ Armor:  %-28s │", a->name);
     } else {
         printf("│ Armor:  (none)                       │");
     }
-    ui_move_cursor(17, 2);
+    row++;
+    ui_move_cursor(row, col);
     printf("└──────────────────────────────────────┘");
     
     // Map section (right side)
@@ -109,27 +189,35 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     if (min_y < 0) min_y = 0;
     if (max_y >= MAP_SIZE) max_y = MAP_SIZE - 1;
     
-    ui_move_cursor(5, map_start_col);
+    row = 10;
+    col = map_start_col;
+    ui_move_cursor(row, col);
     printf("┌─ MAP (Position: %2d, %2d) ─────┐", pos->x, pos->y);
     
-    int row = 6;
+    row++;
+    // Map section (right side) - update the rendering loop
+    row = 11;  // Adjust as needed
     for (int y = min_y; y <= max_y; y++) {
-        ui_move_cursor(row, map_start_col);
+        ui_move_cursor(row, col);
         printf("│ ");
         for (int x = min_x; x <= max_x; x++) {
             if (x == pos->x && y == pos->y) {
-                printf("@");  // Player
+                printf(" @");  // Player
             } else if (x == MAP_CENTER && y == MAP_CENTER) {
-                printf("+");  // Spawn
+                printf(" +");  // Spawn
             } else {
                 Position check = {x, y};
                 int special = is_special_location(&check);
+                TileType tile = map_get_tile(map, x, y);
+                
                 if (special == 1) {
-                    printf("B");  // Boss
+                    printf(" B");  // Boss
                 } else if (special == 2) {
-                    printf("S");  // Shrine
+                    printf(" S");  // Shrine
+                } else if (tile == TILE_WALL) {
+                    printf(" #");  // Wall
                 } else {
-                    printf("·");  // Empty
+                    printf(" ·");  // Floor/Corridor
                 }
             }
         }
@@ -137,43 +225,48 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
         row++;
     }
     
-    ui_move_cursor(row, map_start_col);
+    ui_move_cursor(row, col);
     printf("└────────────────────────────────────┘");
     
     // Legend
-    ui_move_cursor(row + 1, map_start_col);
+    row++;
+    ui_move_cursor(row, col);
     printf("  @ = You  + = Spawn  B = Boss");
-    ui_move_cursor(row + 2, map_start_col);
+    row++;
+    ui_move_cursor(row, col);
     printf("  S = Shrine  · = Empty");
     
-    // Message/log area
-    ui_move_cursor(19, 2);
-    printf("┌─ MESSAGE LOG ───────────────────────────────────────────────────────────────┐");
-    ui_move_cursor(20, 2);
-    printf("│                                                                              │");
-    
-    // Word wrap the message
-    if (message && strlen(message) > 0) {
-        char buffer[100];
-        strncpy(buffer, message, 76);
-        buffer[76] = '\0';
-        ui_move_cursor(20, 4);
-        printf("%s", buffer);
-    }
-    
-    ui_move_cursor(21, 2);
-    printf("└──────────────────────────────────────────────────────────────────────────────┘");
-    
     // Controls
-    ui_move_cursor(23, 2);
-    printf("┌─ CONTROLS ──────────────────────────────────────────────────────────────────┐");
-    ui_move_cursor(24, 2);
-    printf("│ N/S/E/W = Move   I = Inventory   M = Full Map   Q = Quit                    │");
-    ui_move_cursor(25, 2);
-    printf("└──────────────────────────────────────────────────────────────────────────────┘");
-    
+    row = 30;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ CONTROLS ");
+    for (int i = 0; i < 67; i++)
+    {
+        printf("─");
+    }
+    printf("┐");
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ N/S/E/W = Move   I = Inventory   M = Full Map   Q = Quit");
+    col = 80;
+    ui_move_cursor(row, col);
+    printf(" │");
+    col = 2;
+    row++;
+    ui_move_cursor(row, col);
+    printf("└");
+    for (int i = 0; i < 78; i++)
+    {
+        printf("─");
+    }
+
+    printf("┘");
+
     // Command prompt
-    ui_move_cursor(27, 2);
+    row = 35;
+    col = 2;
+    ui_move_cursor(row, col);
     printf("Command: ");
     ui_show_cursor();
     fflush(stdout);

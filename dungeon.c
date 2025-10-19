@@ -7,6 +7,10 @@
 #include "enemies.h"
 #include "player.h"
 
+// Direction arrays for maze generation
+static const int dx[] = {0, 1, 0, -1};
+static const int dy[] = {-1, 0, 1, 0};
+
 // Calculate distance from center (difficulty scaling)
 static int distance_from_center(const Position *pos) {
     int dx = pos->x - MAP_CENTER;
@@ -33,6 +37,90 @@ static int is_special_location(const Position *pos) {
     }
     
     return 0;
+}
+
+// Recursive backtracking maze generation
+static void carve_maze(Map *map, int x, int y) {
+    map->visited[y][x] = 1;
+    map->tiles[y][x] = TILE_FLOOR;
+    
+    // Create array of directions and shuffle them
+    int dirs[4] = {0, 1, 2, 3};
+    for (int i = 3; i > 0; i--) {
+        int j = rand() % (i + 1);
+        int temp = dirs[i];
+        dirs[i] = dirs[j];
+        dirs[j] = temp;
+    }
+    
+    // Try each direction
+    for (int i = 0; i < 4; i++) {
+        int dir = dirs[i];
+        int nx = x + dx[dir] * 2;  // Move 2 cells at a time
+        int ny = y + dy[dir] * 2;
+        
+        // Check if valid and unvisited
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && 
+            !map->visited[ny][nx]) {
+            // Carve the corridor between current and next cell
+            int mx = x + dx[dir];
+            int my = y + dy[dir];
+            map->tiles[my][mx] = TILE_CORRIDOR;
+            
+            // Recursively carve from the new cell
+            carve_maze(map, nx, ny);
+        }
+    }
+}
+
+// Generate procedural maze
+void map_generate(Map *map) {
+    // Initialize all to walls
+    for (int y = 0; y < MAP_SIZE; y++) {
+        for (int x = 0; x < MAP_SIZE; x++) {
+            map->tiles[y][x] = TILE_WALL;
+            map->visited[y][x] = 0;
+        }
+    }
+    
+    // Start maze generation from center
+    carve_maze(map, MAP_CENTER, MAP_CENTER);
+    
+    // Ensure special locations are accessible
+    map->tiles[0][0] = TILE_FLOOR;  // Top-left boss
+    map->tiles[0][MAP_SIZE - 1] = TILE_FLOOR;  // Bottom-left boss
+    map->tiles[MAP_SIZE - 1][0] = TILE_FLOOR;  // Top-right boss
+    map->tiles[MAP_SIZE - 1][MAP_SIZE - 1] = TILE_FLOOR;  // Bottom-right boss
+    
+    map->tiles[0][MAP_CENTER] = TILE_FLOOR;  // Left shrine
+    map->tiles[MAP_SIZE - 1][MAP_CENTER] = TILE_FLOOR;  // Right shrine
+    map->tiles[MAP_CENTER][0] = TILE_FLOOR;  // Top shrine
+    map->tiles[MAP_CENTER][MAP_SIZE - 1] = TILE_FLOOR;  // Bottom shrine
+    
+    // Add some random connections to make maze less linear (20% chance)
+    for (int y = 1; y < MAP_SIZE - 1; y++) {
+        for (int x = 1; x < MAP_SIZE - 1; x++) {
+            if (map->tiles[y][x] == TILE_WALL && rand() % 100 < 20) {
+                map->tiles[y][x] = TILE_CORRIDOR;
+            }
+        }
+    }
+}
+
+// Check if position is walkable
+int map_can_move(const Map *map, int x, int y) {
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
+        return 0;
+    }
+    return map->tiles[y][x] != TILE_WALL;
+}
+
+// Get tile type at position
+TileType map_get_tile(const Map *map, int x, int y) {
+    if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) {
+        return TILE_WALL;
+    }
+    return map->tiles[y][x];
 }
 
 void search_room(Player *player, Position *pos, char *message)
@@ -127,55 +215,7 @@ void search_room(Player *player, Position *pos, char *message)
     }
 }
 
-void print_map(const Position *pos) {
-    printf("\n=== MAP (you are at [%d, %d]) ===\n", pos->x, pos->y);
-    
-    // Show a 15x15 area around the player
-    int view_range = 7;
-    int min_x = pos->x - view_range;
-    int max_x = pos->x + view_range;
-    int min_y = pos->y - view_range;
-    int max_y = pos->y + view_range;
-    
-    // Clamp to map boundaries
-    if (min_x < 0) min_x = 0;
-    if (max_x >= MAP_SIZE) max_x = MAP_SIZE - 1;
-    if (min_y < 0) min_y = 0;
-    if (max_y >= MAP_SIZE) max_y = MAP_SIZE - 1;
-    
-    // Print column headers
-    printf("   ");
-    for (int x = min_x; x <= max_x; x++) {
-        printf("%2d", x % 10);
-    }
-    printf("\n");
-    
-    for (int y = min_y; y <= max_y; y++) {
-        printf("%2d ", y);
-        for (int x = min_x; x <= max_x; x++) {
-            if (x == pos->x && y == pos->y) {
-                printf(" @");  // Player position
-            } else if (x == MAP_CENTER && y == MAP_CENTER) {
-                printf(" +");  // Spawn point
-            } else {
-                Position check = {x, y};
-                int special = is_special_location(&check);
-                if (special == 1) {
-                    printf(" B");  // Boss location
-                } else if (special == 2) {
-                    printf(" S");  // Shrine location
-                } else {
-                    printf(" .");  // Empty
-                }
-            }
-        }
-        printf("\n");
-    }
-    printf("Legend: @ = You, + = Spawn, B = Boss, S = Shrine, . = Unexplored\n");
-    printf("Map size: %dx%d\n\n", MAP_SIZE, MAP_SIZE);
-}
-
-void handle_command(char command, int *running, Position *pos, Player *player, char *message)
+void handle_command(char command, int *running, Position *pos, Player *player, char *message, Map *map)
 {
     int moved = 0;
     Position new_pos = *pos;
@@ -189,43 +229,41 @@ void handle_command(char command, int *running, Position *pos, Player *player, c
         snprintf(message, 256, "Quitting the game. Thanks for playing!");
         return;
     case 'M':
-        // TODO: Implement full map view in UI
         snprintf(message, 256, "Full map view - press any key to continue");
         return;
     case 'I':
-        // TODO: Implement inventory screen in UI
         snprintf(message, 256, "Inventory screen - press any key to continue");
         return;
     case 'N':
-        if (pos->y > 0) {
-            new_pos.y--;
+        new_pos.y--;
+        if (map_can_move(map, new_pos.x, new_pos.y)) {
             moved = 1;
         } else {
-            snprintf(message, 256, "Cannot go north - edge of the world!");
+            snprintf(message, 256, "Cannot go north - there's a wall!");
         }
         break;
     case 'S':
-        if (pos->y < MAP_SIZE - 1) {
-            new_pos.y++;
+        new_pos.y++;
+        if (map_can_move(map, new_pos.x, new_pos.y)) {
             moved = 1;
         } else {
-            snprintf(message, 256, "Cannot go south - edge of the world!");
+            snprintf(message, 256, "Cannot go south - there's a wall!");
         }
         break;
     case 'E':
-        if (pos->x < MAP_SIZE - 1) {
-            new_pos.x++;
+        new_pos.x++;
+        if (map_can_move(map, new_pos.x, new_pos.y)) {
             moved = 1;
         } else {
-            snprintf(message, 256, "Cannot go east - edge of the world!");
+            snprintf(message, 256, "Cannot go east - there's a wall!");
         }
         break;
     case 'W':
-        if (pos->x > 0) {
-            new_pos.x--;
+        new_pos.x--;
+        if (map_can_move(map, new_pos.x, new_pos.y)) {
             moved = 1;
         } else {
-            snprintf(message, 256, "Cannot go west - edge of the world!");
+            snprintf(message, 256, "Cannot go west - there's a wall!");
         }
         break;
     default:
@@ -235,14 +273,6 @@ void handle_command(char command, int *running, Position *pos, Player *player, c
     
     if (moved) {
         *pos = new_pos;
-        int dist = distance_from_center(pos);
-        char temp_msg[256];
-        snprintf(temp_msg, 256, "Moved to [%d, %d] (distance from center: %d). ", 
-               pos->x, pos->y, dist);
-        strcpy(message, temp_msg);
-        
-        char event_msg[256];
-        search_room(player, pos, event_msg);
-        strncat(message, event_msg, 256 - strlen(message) - 1);
+        search_room(player, pos, message);
     }
 }

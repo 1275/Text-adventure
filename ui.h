@@ -11,6 +11,6 @@ void ui_hide_cursor(void);
 void ui_show_cursor(void);
 
 // Full screen rendering
-void ui_render_game(const Player *player, const Position *pos, const char *message);
+void ui_render_game(const Player *player, const Position *pos, const char *message, const Map *map);
 
 #endif
