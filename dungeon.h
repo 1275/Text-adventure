@@ -14,8 +14,8 @@ typedef struct {
 } Position;
 
 char read_command(void);
-void search_room(Player *player, Position *pos);
-void handle_command(char command, int *running, Position *pos, Player *player);
+void search_room(Player *player, Position *pos, char *message);
+void handle_command(char command, int *running, Position *pos, Player *player, char *message);
 void print_map(const Position *pos);
 
 #endif

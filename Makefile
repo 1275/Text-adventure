@@ -3,9 +3,9 @@ CFLAGS := -std=c11 -Wall -Wextra -O2
 LDFLAGS := -lm
 
 TARGET := adventure
-SRCS := main.c dungeon.c enemies.c player.c
+SRCS := main.c player.c dungeon.c enemies.c ui.c 
 OBJS := $(SRCS:.c=.o)
-HEADERS := dungeon.h enemies.h player.h
+HEADERS := dungeon.h enemies.h player.h ui.h 
 
 all: $(TARGET)
 

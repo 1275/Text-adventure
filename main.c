@@ -3,6 +3,7 @@
 #include <time.h>
 #include "dungeon.h"
 #include "player.h"
+#include "ui.h"
 
 int main(void)
 {
@@ -11,30 +12,42 @@ int main(void)
     Player player;
     player_init(&player);
 
-    Position pos = {MAP_CENTER, MAP_CENTER}; // Start at center of map
+    Position pos = {MAP_CENTER, MAP_CENTER};
     int running = 1;
+    char message[256] = "Welcome to the Dungeon! You are at the center of the map.";
 
-    printf("=== Welcome to the Dungeon Crawler! ===\n");
-    printf("You find yourself at the center of a vast %dx%d dungeon.\n", MAP_SIZE, MAP_SIZE);
-    printf("Tips: Use N/S/E/W to move, M to view map, Q to quit.\n");
-    printf("Starting position: [%d, %d]\n\n", pos.x, pos.y);
-    player_print_status(&player);
-    player_print_inventory(&player);
+    // Initial render
+    ui_render_game(&player, &pos, message);
 
     while (running)
     {
-        player_print_status(&player);
-        char command = read_command();
-        handle_command(command, &running, &pos, &player);
+        char command;
+        if (scanf(" %c", &command) != 1) {
+            break;
+        }
+        
+        // Handle command (this will modify player and pos)
+        handle_command(command, &running, &pos, &player, message);
+        
+        // Re-render the screen
+        if (running) {
+            ui_render_game(&player, &pos, message);
+        }
 
         if (player.health <= 0)
         {
-            printf("You have perished in the dungeon. Game Over!\n");
-            printf("Final Level: %d, Gold: %d, Position: [%d, %d]\n", 
-                   player.level, player.gold, pos.x, pos.y);
+            ui_clear_screen();
+            printf("\n╔════════════════════════════════════════╗\n");
+            printf("║         GAME OVER                      ║\n");
+            printf("╚════════════════════════════════════════╝\n\n");
+            printf("You have perished in the dungeon.\n");
+            printf("Final Level: %d\n", player.level);
+            printf("Gold Collected: %d\n", player.gold);
+            printf("Final Position: [%d, %d]\n\n", pos.x, pos.y);
             running = 0;
         }
     }
 
+    ui_show_cursor();
     return 0;
 }
