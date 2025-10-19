@@ -105,6 +105,13 @@ void map_generate(Map *map) {
             }
         }
     }
+    
+    // Reset visited array for player exploration tracking
+    for (int y = 0; y < MAP_SIZE; y++) {
+        for (int x = 0; x < MAP_SIZE; x++) {
+            map->visited[y][x] = 0;
+        }
+    }
 }
 
 // Check if position is walkable
@@ -123,29 +130,25 @@ TileType map_get_tile(const Map *map, int x, int y) {
     return map->tiles[y][x];
 }
 
-void search_room(Player *player, Position *pos, char *message)
+void search_room(Player *player, Position *pos, char *message, Map *map, BattleState *battle)
 {
+    // Check if this room has already been visited
+    if (map->visited[pos->y][pos->x]) {
+        snprintf(message, 256, "This area has already been explored. Nothing new here.");
+        return;
+    }
+    
+    // Mark room as visited
+    map->visited[pos->y][pos->x] = 1;
+    
     int special = is_special_location(pos);
     
     // Special boss locations at corners
     if (special == 1) {
-        snprintf(message, 256, "*** BOSS LAIR! An Ancient Dragon guards treasure! ***");
-        
-        // Create a powerful boss
-        Monster boss = {"Ancient Dragon", 250, 30, 12, 150, 300, 500};
-        int mhp = boss.hp;
-        
-        // Note: Battle system needs to be refactored for message-based output
-        // For now, just simulate the battle result
-        // TODO: Refactor battle system to work with UI
-        
-        player->gold += 250;
-        player_gain_exp(player, boss.exp_reward);
-        
-        Item legendary = (Item){100, ITEM_WEAPON, "Legendary Dragonslayer", 1, {25, 5}, 500};
-        player_add_item(player, &legendary);
-        
-        snprintf(message, 256, "Victory! Defeated Ancient Dragon! +250 gold, legendary item!");
+        snprintf(message, 256, "*** BOSS LAIR! An Ancient Dragon appears! ***");
+        battle->is_active = 1;
+        battle->monster = (Monster){"Ancient Dragon", 250, 30, 12, 150, 300, 500};
+        battle->monster_hp = battle->monster.hp;
         return;
     }
     
@@ -170,7 +173,7 @@ void search_room(Player *player, Position *pos, char *message)
     }
     
     int dist = distance_from_center(pos);
-    int difficulty = dist / 5; // Difficulty increases every 5 tiles from center
+    int difficulty = dist / 5;
     
     // More dangerous events further from center
     int event_roll = rand() % 100;
@@ -185,11 +188,28 @@ void search_room(Player *player, Position *pos, char *message)
         snprintf(message, 256, "Trap triggered! Took %d damage.", dmg);
     }
     else if (event_roll < monster_threshold) {
-        // TODO: Battle system needs refactoring for UI
-        // For now, simulate a quick battle
-        int loot = 10 + rand() % 30;
-        player->gold += loot;
-        snprintf(message, 256, "Monster appeared and defeated! Looted %d gold.", loot);
+        // Start a battle!
+        static const Monster monsters[] = {
+            {"Goblin",       30,  7, 1,  8, 20,  25},
+            {"Skeleton",     40,  9, 2, 12, 26,  35},
+            {"Giant Spider", 50, 11, 3, 15, 30,  45},
+            {"Orc",          60, 13, 4, 20, 35,  60},
+            {"Troll",        80, 16, 5, 30, 45,  80},
+            {"Dark Knight", 100, 20, 7, 40, 60, 120},
+        };
+        int mcount = 6;
+        int idx = rand() % mcount;
+        
+        // Scale monster with difficulty
+        Monster m = monsters[idx];
+        m.hp += difficulty * 10;
+        m.attack += difficulty;
+        m.defense += difficulty / 2;
+        
+        battle->is_active = 1;
+        battle->monster = m;
+        battle->monster_hp = m.hp;
+        snprintf(message, 256, "A %s appears! Prepare for battle!", m.name);
     }
     else if (event_roll < treasure_threshold) {
         int gold = 10 + rand() % 41 + difficulty * 5;
@@ -215,8 +235,122 @@ void search_room(Player *player, Position *pos, char *message)
     }
 }
 
-void handle_command(char command, int *running, Position *pos, Player *player, char *message, Map *map)
+// Handle battle commands
+static void handle_battle_command(char command, Player *player, BattleState *battle, char *message, GameState *state) {
+    command = (char)toupper((unsigned char)command);
+    
+    switch (command) {
+    case 'A': {
+        // Player attacks
+        int p_roll = rand() % 6;
+        int p_attack = player->total_damage + p_roll;
+        int dmg_to_mon = p_attack - battle->monster.defense;
+        if (dmg_to_mon < 1) dmg_to_mon = 1;
+        
+        battle->monster_hp -= dmg_to_mon;
+        if (battle->monster_hp < 0) battle->monster_hp = 0;
+        
+        snprintf(message, 256, "You hit the %s for %d damage!", battle->monster.name, dmg_to_mon);
+        
+        // Check if monster died
+        if (battle->monster_hp <= 0) {
+            int loot = battle->monster.min_loot + (rand() % (battle->monster.max_loot - battle->monster.min_loot + 1));
+            player->gold += loot;
+            player_gain_exp(player, battle->monster.exp_reward);
+            
+            char temp[256];
+            snprintf(temp, 256, "%s Victory! Defeated %s! Gained %d gold and %d XP.", 
+                    message, battle->monster.name, loot, battle->monster.exp_reward);
+            strcpy(message, temp);
+            
+            // Random item drops (15% chance)
+            if (rand() % 100 < 15) {
+                Item drop;
+                int drop_type = rand() % 100;
+                
+                if (drop_type < 40) {
+                    drop = (Item){10, ITEM_CONSUMABLE, "Health Potion", 1, {0, 0}, 10};
+                } else if (drop_type < 70) {
+                    const char *weapon_names[] = {"Iron Sword", "Steel Axe", "War Hammer", "Enchanted Blade"};
+                    int wpn_idx = rand() % 4;
+                    int dmg_bonus = 8 + rand() % 10;
+                    drop = (Item){20 + wpn_idx, ITEM_WEAPON, weapon_names[wpn_idx], 1, {dmg_bonus, 0}, 20 + dmg_bonus * 2};
+                } else {
+                    const char *armor_names[] = {"Leather Armor", "Chain Mail", "Plate Armor", "Dragon Scale"};
+                    int arm_idx = rand() % 4;
+                    int def_bonus = 4 + rand() % 8;
+                    drop = (Item){30 + arm_idx, ITEM_ARMOR, armor_names[arm_idx], 1, {0, def_bonus}, 15 + def_bonus * 2};
+                }
+                
+                player_add_item(player, &drop);
+                char temp2[256];
+                snprintf(temp2, 256, "%s Also received %s!", message, drop.name);
+                strcpy(message, temp2);
+            }
+            
+            battle->is_active = 0;
+            *state = STATE_EXPLORING;
+            return;
+        }
+        
+        // Monster counterattacks
+        int m_roll = rand() % 4;
+        int m_attack = battle->monster.attack + m_roll;
+        int dmg_to_player = m_attack - player->total_defense;
+        if (dmg_to_player < 1) dmg_to_player = 1;
+        
+        player->health -= dmg_to_player;
+        if (player->health < 0) player->health = 0;
+        
+        char temp[256];
+        snprintf(temp, 256, "%s The %s counters for %d damage!", 
+                message, battle->monster.name, dmg_to_player);
+        strcpy(message, temp);
+        break;
+    }
+    
+    case 'Q': {
+        if (rand() % 100 < 30) {  // 30% flee chance
+            snprintf(message, 256, "You successfully fled from the %s!", battle->monster.name);
+            battle->is_active = 0;
+            *state = STATE_EXPLORING;
+        } else {
+            // Failed flee - monster gets free hit
+            int m_roll = rand() % 4;
+            int m_attack = battle->monster.attack + m_roll;
+            int dmg_to_player = m_attack - player->total_defense;
+            if (dmg_to_player < 1) dmg_to_player = 1;
+            
+            player->health -= dmg_to_player;
+            if (player->health < 0) player->health = 0;
+            
+            snprintf(message, 256, "Failed to flee! The %s punishes you for %d damage!", 
+                    battle->monster.name, dmg_to_player);
+        }
+        break;
+    }
+    
+    case 'I': {
+        // TODO: Implement item use in battle
+        snprintf(message, 256, "Item use in battle - coming soon!");
+        break;
+    }
+    
+    default:
+        snprintf(message, 256, "Invalid command! Use A to attack, I for item, Q to flee.");
+        break;
+    }
+}
+
+void handle_command(char command, int *running, Position *pos, Player *player, char *message, Map *map, GameState *state, BattleState *battle)
 {
+    // If in battle, handle battle commands
+    if (*state == STATE_BATTLE) {
+        handle_battle_command(command, player, battle, message, state);
+        return;
+    }
+    
+    // Regular exploration commands
     int moved = 0;
     Position new_pos = *pos;
     
@@ -273,6 +407,11 @@ void handle_command(char command, int *running, Position *pos, Player *player, c
     
     if (moved) {
         *pos = new_pos;
-        search_room(player, pos, message);
+        search_room(player, pos, message, map, battle);
+        
+        // If a battle started, switch to battle state
+        if (battle->is_active) {
+            *state = STATE_BATTLE;
+        }
     }
 }
