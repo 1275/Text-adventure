@@ -54,10 +54,8 @@ typedef struct {
     Equipment equipped;
 } Player;
 
-// Init with starter gear and apply equipment
+// Initialization and equipment
 void player_init(Player *p);
-
-// Recompute total_damage/total_defense from base + equipped items
 void player_apply_equipment(Player *p);
 
 // Experience and leveling
@@ -66,6 +64,8 @@ void player_level_up(Player *p);
 
 // Inventory management
 int player_add_item(Player *p, const Item *item);
+int player_use_item(Player *p);  // Returns 1 if item was used, 0 otherwise
+void player_equip_item(Player *p, int slot);
 
 // Utility display
 void player_print_status(const Player *p);
