@@ -1,6 +1,8 @@
 # Build artifacts
 *.o
 adventure
+*.log
+_codeql_detected_source_root
 
 # Temporary files
 *.swp

@@ -1,6 +1,0 @@
-gcc -std=c11 -Wall -Wextra -O2 -c main.c -o main.o
-gcc -std=c11 -Wall -Wextra -O2 -c player.c -o player.o
-gcc -std=c11 -Wall -Wextra -O2 -c dungeon.c -o dungeon.o
-gcc -std=c11 -Wall -Wextra -O2 -c enemies.c -o enemies.o
-gcc -std=c11 -Wall -Wextra -O2 -c ui.c -o ui.o
-gcc -std=c11 -Wall -Wextra -O2 -o adventure main.o player.o dungeon.o enemies.o ui.o -lm
