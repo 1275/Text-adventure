@@ -36,22 +36,48 @@ void player_apply_equipment(Player *p) {
 }
 
 /**
- * Initialize player with starting stats and equipment
+ * Get the name of a player class as a string
  */
-void player_init(Player *p) {
-    // Set initial resources
-    p->max_health   = 100;
-    p->health       = p->max_health;
-    p->gold         = 0;
+const char* player_class_name(PlayerClass class) {
+    switch (class) {
+        case CLASS_WARRIOR: return "Warrior";
+        case CLASS_MAGE:    return "Mage";
+        default:            return "Unknown";
+    }
+}
 
+/**
+ * Initialize player with starting stats and equipment based on class
+ */
+void player_init(Player *p, PlayerClass class) {
+    // Set player class
+    p->player_class = class;
+    
     // Set starting level and experience
     p->level        = 1;
     p->experience   = 0;
     p->exp_to_next_level = 100;
+    p->gold         = 0;
 
-    // Set base stats (before equipment)
-    p->base_damage  = 10;
-    p->base_defense = 5;
+    // Set class-specific stats
+    if (class == CLASS_WARRIOR) {
+        // Warrior: Higher base damage and defense, standard health
+        p->max_health   = 100;
+        p->base_damage  = 15;  // +5 from default
+        p->base_defense = 8;   // +3 from default
+    } else if (class == CLASS_MAGE) {
+        // Mage: Higher max health, lower physical stats
+        p->max_health   = 120;  // +20 from default
+        p->base_damage  = 8;    // -2 from default
+        p->base_defense = 4;    // -1 from default
+    } else {
+        // Fallback to default stats
+        p->max_health   = 100;
+        p->base_damage  = 10;
+        p->base_defense = 5;
+    }
+    
+    p->health = p->max_health;
 
     // Give starter items
     p->inventory[0] = (Item){1, ITEM_WEAPON,    "Rusty Sword",  1, {6, 0},  5};
