@@ -131,6 +131,9 @@ void ui_render_game(const Player *player, const Position *pos, const char *messa
     printf("┌─ PLAYER STATUS ─────────────────────┐"); // player status box header
     row++;
     ui_move_cursor(row, col);
+    printf("│ Class: %-10s                 │", player_class_name(player->player_class)); // player class
+    row++;
+    ui_move_cursor(row, col);
     printf("│ Level: %-2d     HP: %3d/%-3d         │", player->level, player->health, player->max_health); // level and hp
     row++;
     ui_move_cursor(row, col);
@@ -326,7 +329,7 @@ void ui_render_battle(const Player *player, const BattleState *battle, const cha
     printf("│         YOUR STATUS          │");
     row++;
     ui_move_cursor(row, col);
-    printf("│                              │");
+    printf("│  Class: %-20s│", player_class_name(player->player_class));
     row++;
     ui_move_cursor(row, col);
     printf("│  HP: %3d / %3d              │", player->health, player->max_health);

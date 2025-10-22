@@ -7,6 +7,7 @@ Targeted for the LuckFox Pico (Rockchip RV1103) with 64 MB RAM, but builds and r
 ## Features
 
 - Lightweight C11 code, minimal dependencies
+- **Character classes** - Choose between Warrior (high damage/defense) or Mage (high health)
 - **50x50 procedurally generated dungeon map** with position tracking
 - **Experience and leveling system** - gain XP from combat and level up to increase stats
 - **Random encounters** including combat, traps, treasures, and healing events
@@ -50,6 +51,9 @@ Requires GNU Make and a C compiler.
 
 ## Gameplay Guide
 
+- **Character Classes**: Choose your class at game start
+  - **Warrior**: High base damage (15) and defense (8), standard health (100)
+  - **Mage**: High max health (120), lower damage (8) and defense (4)
 - **Starting Location**: You spawn at the center of the map [25, 25]
 - **Map Size**: 50x50 grid (coordinates 0-49 in each direction)
 - **Difficulty**: Increases as you move further from the spawn point
