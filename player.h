@@ -5,8 +5,19 @@ enum { MAX_INVENTORY = 24, INVALID_SLOT = -1 };
 
 typedef enum {
     CLASS_WARRIOR,
-    CLASS_MAGE
+    CLASS_MAGE,
+    CLASS_COUNT  // Keep this last - used to get total number of classes
 } PlayerClass;
+
+// Class definition structure for easy expansion
+typedef struct {
+    PlayerClass class_type;
+    const char *name;
+    const char *description;
+    int max_health;
+    int base_damage;
+    int base_defense;
+} ClassDefinition;
 
 typedef enum {
     ITEM_CONSUMABLE,
@@ -66,8 +77,10 @@ typedef struct {
 void player_init(Player *p, PlayerClass class);
 void player_apply_equipment(Player *p);
 
-// Utility function for class name
+// Utility functions for class management
 const char* player_class_name(PlayerClass class);
+const ClassDefinition* get_class_definition(PlayerClass class);
+const ClassDefinition* get_all_class_definitions(int *count);
 
 // Experience and leveling
 void player_gain_exp(Player *p, int exp);

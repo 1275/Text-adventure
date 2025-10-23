@@ -36,14 +36,59 @@ void player_apply_equipment(Player *p) {
 }
 
 /**
+ * Class definitions - ADD NEW CLASSES HERE
+ * To add a new class, simply add a new entry to this array
+ */
+static const ClassDefinition class_definitions[] = {
+    {
+        CLASS_WARRIOR,
+        "Warrior",
+        "A fierce melee fighter",
+        100,  // max_health
+        15,   // base_damage (+5 from default 10)
+        8     // base_defense (+3 from default 5)
+    },
+    {
+        CLASS_MAGE,
+        "Mage",
+        "A mystical spellcaster",
+        120,  // max_health (+20 from default)
+        8,    // base_damage (-2 from default)
+        4     // base_defense (-1 from default)
+    }
+    // Add more classes here as needed
+};
+
+/**
+ * Get all class definitions and their count
+ */
+const ClassDefinition* get_all_class_definitions(int *count) {
+    *count = sizeof(class_definitions) / sizeof(class_definitions[0]);
+    return class_definitions;
+}
+
+/**
+ * Get a specific class definition
+ */
+const ClassDefinition* get_class_definition(PlayerClass class) {
+    int count;
+    const ClassDefinition *defs = get_all_class_definitions(&count);
+    
+    for (int i = 0; i < count; i++) {
+        if (defs[i].class_type == class) {
+            return &defs[i];
+        }
+    }
+    
+    return NULL;  // Class not found
+}
+
+/**
  * Get the name of a player class as a string
  */
 const char* player_class_name(PlayerClass class) {
-    switch (class) {
-        case CLASS_WARRIOR: return "Warrior";
-        case CLASS_MAGE:    return "Mage";
-        default:            return "Unknown";
-    }
+    const ClassDefinition *def = get_class_definition(class);
+    return def ? def->name : "Unknown";
 }
 
 /**
@@ -59,19 +104,14 @@ void player_init(Player *p, PlayerClass class) {
     p->exp_to_next_level = 100;
     p->gold         = 0;
 
-    // Set class-specific stats
-    if (class == CLASS_WARRIOR) {
-        // Warrior: Higher base damage and defense, standard health
-        p->max_health   = 100;
-        p->base_damage  = 15;  // +5 from default
-        p->base_defense = 8;   // +3 from default
-    } else if (class == CLASS_MAGE) {
-        // Mage: Higher max health, lower physical stats
-        p->max_health   = 120;  // +20 from default
-        p->base_damage  = 8;    // -2 from default
-        p->base_defense = 4;    // -1 from default
+    // Get class definition and apply stats
+    const ClassDefinition *class_def = get_class_definition(class);
+    if (class_def) {
+        p->max_health   = class_def->max_health;
+        p->base_damage  = class_def->base_damage;
+        p->base_defense = class_def->base_defense;
     } else {
-        // Fallback to default stats
+        // Fallback to default stats if class not found
         p->max_health   = 100;
         p->base_damage  = 10;
         p->base_defense = 5;
