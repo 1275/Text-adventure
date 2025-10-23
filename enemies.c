@@ -4,23 +4,160 @@
 #include "enemies.h"
 #include "player.h"
 
+// Helper function to generate a monster instance based on player level
+static Monster generate_monster(const MonsterTemplate *template, int player_level)
+{
+    Monster m;
+    
+    // Calculate monster level within the allowed range
+    int level_min = player_level + template->level_offset_min;
+    int level_max = player_level + template->level_offset_max;
+    
+    // Ensure minimum level of 1
+    if (level_min < 1) level_min = 1;
+    if (level_max < 1) level_max = 1;
+    
+    // Randomize within the level range
+    m.level = level_min + (rand() % (level_max - level_min + 1));
+    
+    // Calculate stats based on level with some randomization (±20% variance)
+    int hp_base = template->base_hp + (m.level - 1) * template->hp_per_level;
+    int hp_variance = hp_base / 5; // ±20%
+    m.hp = hp_base + (rand() % (hp_variance * 2 + 1)) - hp_variance;
+    if (m.hp < 1) m.hp = 1;
+    
+    int attack_base = template->base_attack + (m.level - 1) * template->attack_per_level;
+    int attack_variance = attack_base / 5;
+    m.attack = attack_base + (rand() % (attack_variance * 2 + 1)) - attack_variance;
+    if (m.attack < 1) m.attack = 1;
+    
+    int defense_base = template->base_defense + (m.level - 1) * template->defense_per_level;
+    int defense_variance = defense_base / 5;
+    m.defense = defense_base + (rand() % (defense_variance * 2 + 1)) - defense_variance;
+    if (m.defense < 0) m.defense = 0;
+    
+    m.name = template->name;
+    m.min_loot = template->min_loot;
+    m.max_loot = template->max_loot;
+    m.exp_reward = template->exp_reward_base + (m.level - 1) * 10; // Exp scales with level
+    
+    return m;
+}
+
 int battle_monster(Player *player)
 {
-    static const Monster monsters[] = {
-        {"Goblin",       30,  7, 1,  8, 20,  25},
-        {"Skeleton",     40,  9, 2, 12, 26,  35},
-        {"Giant Spider", 50, 11, 3, 15, 30,  45},
-        {"Orc",          60, 13, 4, 20, 35,  60},
-        {"Troll",        80, 16, 5, 30, 45,  80},
-        {"Dark Knight", 100, 20, 7, 40, 60, 120},
-        {"Dragon",      150, 25, 9, 60, 100, 200},
+    // Monster templates with level ranges and scaling
+    static const MonsterTemplate templates[] = {
+        {
+            .name = "Goblin",
+            .level_offset_min = -2,
+            .level_offset_max = 2,
+            .base_hp = 25,
+            .hp_per_level = 8,
+            .base_attack = 5,
+            .attack_per_level = 2,
+            .base_defense = 0,
+            .defense_per_level = 1,
+            .min_loot = 8,
+            .max_loot = 20,
+            .exp_reward_base = 20
+        },
+        {
+            .name = "Skeleton",
+            .level_offset_min = -1,
+            .level_offset_max = 3,
+            .base_hp = 35,
+            .hp_per_level = 10,
+            .base_attack = 7,
+            .attack_per_level = 2,
+            .base_defense = 1,
+            .defense_per_level = 1,
+            .min_loot = 12,
+            .max_loot = 26,
+            .exp_reward_base = 30
+        },
+        {
+            .name = "Giant Spider",
+            .level_offset_min = 0,
+            .level_offset_max = 3,
+            .base_hp = 40,
+            .hp_per_level = 12,
+            .base_attack = 8,
+            .attack_per_level = 3,
+            .base_defense = 2,
+            .defense_per_level = 1,
+            .min_loot = 15,
+            .max_loot = 30,
+            .exp_reward_base = 40
+        },
+        {
+            .name = "Orc",
+            .level_offset_min = 0,
+            .level_offset_max = 4,
+            .base_hp = 50,
+            .hp_per_level = 15,
+            .base_attack = 10,
+            .attack_per_level = 3,
+            .base_defense = 2,
+            .defense_per_level = 1,
+            .min_loot = 20,
+            .max_loot = 35,
+            .exp_reward_base = 50
+        },
+        {
+            .name = "Troll",
+            .level_offset_min = 1,
+            .level_offset_max = 5,
+            .base_hp = 70,
+            .hp_per_level = 20,
+            .base_attack = 12,
+            .attack_per_level = 4,
+            .base_defense = 3,
+            .defense_per_level = 2,
+            .min_loot = 30,
+            .max_loot = 45,
+            .exp_reward_base = 70
+        },
+        {
+            .name = "Dark Knight",
+            .level_offset_min = 2,
+            .level_offset_max = 6,
+            .base_hp = 90,
+            .hp_per_level = 25,
+            .base_attack = 15,
+            .attack_per_level = 5,
+            .base_defense = 5,
+            .defense_per_level = 2,
+            .min_loot = 40,
+            .max_loot = 60,
+            .exp_reward_base = 100
+        },
+        {
+            .name = "Dragon",
+            .level_offset_min = 3,
+            .level_offset_max = 7,
+            .base_hp = 120,
+            .hp_per_level = 30,
+            .base_attack = 18,
+            .attack_per_level = 6,
+            .base_defense = 7,
+            .defense_per_level = 2,
+            .min_loot = 60,
+            .max_loot = 100,
+            .exp_reward_base = 180
+        }
     };
-    const int mcount = (int)(sizeof(monsters)/sizeof(monsters[0]));
-    int idx = rand() % mcount;
-    Monster m = monsters[idx];
-
+    const int tcount = (int)(sizeof(templates)/sizeof(templates[0]));
+    
+    // Select a random monster template
+    int idx = rand() % tcount;
+    
+    // Generate the actual monster based on player level
+    Monster m = generate_monster(&templates[idx], player->level);
+    
     int mhp = m.hp;
-    printf("A %s appears with %d HP!\n", m.name, mhp);
+    printf("\nA level %d %s appears with %d HP!\n", m.level, m.name, mhp);
+    printf("(Attack: %d, Defense: %d)\n", m.attack, m.defense);
 
     while (mhp > 0 && player->health > 0)
     {

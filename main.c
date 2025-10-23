@@ -277,6 +277,8 @@ int main(void)
         if (running) {
             if (state == STATE_BATTLE) {
                 ui_render_battle(&player, &battle, message);
+            } else if (state == STATE_INVENTORY) {
+                ui_render_inventory(&player, message);
             } else {
                 ui_render_game(&player, &pos, message, &map);
             }

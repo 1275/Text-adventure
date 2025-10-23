@@ -382,3 +382,156 @@ void ui_render_battle(const Player *player, const BattleState *battle, const cha
     ui_show_cursor();
     fflush(stdout);
 }
+
+// Helper: Convert item type to string for display
+static const char* ui_item_type_name(ItemType t) {
+    switch (t) {
+        case ITEM_CONSUMABLE: return "Consumable";
+        case ITEM_WEAPON:     return "Weapon";
+        case ITEM_ARMOR:      return "Armor";
+        case ITEM_MISC:       return "Misc";
+        default:              return "Unknown";
+    }
+}
+
+// Render inventory interface
+void ui_render_inventory(const Player *player, const char *message) {
+    ui_clear_screen();
+    ui_hide_cursor();
+    
+    int row, col;
+
+    // Title bar
+    row = 1;
+    col = 1;
+    ui_move_cursor(row, col);
+    printf("╔════════════════════════════════════════════════════════════════════════════════╗");
+    row++;
+    ui_move_cursor(row, col);
+    printf("║                              💼 INVENTORY 💼                                   ║");
+    row++;
+    ui_move_cursor(row, col);
+    printf("╚════════════════════════════════════════════════════════════════════════════════╝");
+    
+    // Player stats section (top)
+    row = 5;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ PLAYER STATUS ─────────────────────────────────────────────────────────────────┐");
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ Class: %-15s   Level: %-2d   HP: %3d/%-3d   Gold: %-6d              │", 
+           player_class_name(player->player_class), player->level, 
+           player->health, player->max_health, player->gold);
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ Attack: %-3d (base %-2d)      Defense: %-3d (base %-2d)                          │",
+           player->total_damage, player->base_damage, player->total_defense, player->base_defense);
+    row++;
+    ui_move_cursor(row, col);
+    printf("└──────────────────────────────────────────────────────────────────────────────────┘");
+    
+    // Equipment section
+    row = 10;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ EQUIPPED ITEMS ────────────────────────────────────────────────────────────────┐");
+    row++;
+    ui_move_cursor(row, col);
+    if (player->equipped.weapon_slot != INVALID_SLOT) {
+        const Item *w = &player->inventory[player->equipped.weapon_slot];
+        printf("│ Weapon: %-30s [Slot %2d]  (+%d dmg, +%d def)         │", 
+               w->name, player->equipped.weapon_slot, w->stats.damage, w->stats.defense);
+    } else {
+        printf("│ Weapon: (none)                                                                 │");
+    }
+    row++;
+    ui_move_cursor(row, col);
+    if (player->equipped.armor_slot != INVALID_SLOT) {
+        const Item *a = &player->inventory[player->equipped.armor_slot];
+        printf("│ Armor:  %-30s [Slot %2d]  (+%d dmg, +%d def)         │", 
+               a->name, player->equipped.armor_slot, a->stats.damage, a->stats.defense);
+    } else {
+        printf("│ Armor:  (none)                                                                 │");
+    }
+    row++;
+    ui_move_cursor(row, col);
+    printf("└──────────────────────────────────────────────────────────────────────────────────┘");
+    
+    // Inventory items section
+    row = 15;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ INVENTORY ITEMS (%d/%d) ───────────────────────────────────────────────────────┐", 
+           player->inv_count, MAX_INVENTORY);
+    
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ Slot  Name             Qty  Type         Stats             Value   Equipped     │");
+    row++;
+    ui_move_cursor(row, col);
+    printf("│──────────────────────────────────────────────────────────────────────────────────│");
+    
+    // Display each item
+    for (int i = 0; i < player->inv_count && i < 10; i++) {
+        row++;
+        ui_move_cursor(row, col);
+        const Item *it = &player->inventory[i];
+        int is_equipped = (player->equipped.weapon_slot == i) || (player->equipped.armor_slot == i);
+        
+        char stats_str[20];
+        if (it->stats.damage || it->stats.defense) {
+            snprintf(stats_str, sizeof(stats_str), "+%d dmg, +%d def", 
+                    it->stats.damage, it->stats.defense);
+        } else {
+            snprintf(stats_str, sizeof(stats_str), "—");
+        }
+        
+        printf("│ [%2d]  %-16s %-4d %-12s %-18s %-6d  %-3s          │",
+               i, it->name, it->quantity, ui_item_type_name(it->type), 
+               stats_str, it->value, is_equipped ? "[E]" : "");
+    }
+    
+    // Fill remaining slots
+    for (int i = player->inv_count; i < 10; i++) {
+        row++;
+        ui_move_cursor(row, col);
+        printf("│ [%2d]  (empty)                                                                  │", i);
+    }
+    
+    row++;
+    ui_move_cursor(row, col);
+    printf("└──────────────────────────────────────────────────────────────────────────────────┘");
+    
+    // Message area
+    row = 28;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ MESSAGE ────────────────────────────────────────────────────────────────────────┐");
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ %-78s │", message ? message : "");
+    row++;
+    ui_move_cursor(row, col);
+    printf("└──────────────────────────────────────────────────────────────────────────────────┘");
+    
+    // Controls
+    row = 32;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("┌─ COMMANDS ───────────────────────────────────────────────────────────────────────┐");
+    row++;
+    ui_move_cursor(row, col);
+    printf("│ U <slot> = Use consumable     E <slot> = Equip weapon/armor     Q = Exit         │");
+    row++;
+    ui_move_cursor(row, col);
+    printf("└──────────────────────────────────────────────────────────────────────────────────┘");
+    
+    // Command prompt
+    row = 36;
+    col = 2;
+    ui_move_cursor(row, col);
+    printf("Inventory Command: ");
+    ui_show_cursor();
+    fflush(stdout);
+}
